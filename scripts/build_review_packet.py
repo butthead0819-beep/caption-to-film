@@ -14,7 +14,7 @@
   - 批註格式提示
 
 用法：
-  .venv/bin/python scripts/build_review_packet.py my_trip
+  .venv/bin/python scripts/build_review_packet.py 2026_單車環島_父子冒險紀錄片
   .venv/bin/python scripts/build_review_packet.py --json path/to.json --key-images 4
 """
 

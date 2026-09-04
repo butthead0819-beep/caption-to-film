@@ -24,7 +24,7 @@ effects_engine 有就讀、沒有就略過。
 
 用法:
   .venv/bin/python scripts/dump_photos_metadata.py
-  .venv/bin/python scripts/dump_photos_metadata.py --album "my_trip"
+  .venv/bin/python scripts/dump_photos_metadata.py --album "2026單車環島"
 """
 
 import argparse

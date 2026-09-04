@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""從 storyboard JSON 重新產生 FCPXML / SRT / Markdown（讀 edit_project.json 的 prefix）。
+"""從 storyboard JSON 重新產生 FCPXML / SRT / Markdown。
 
 修正項目：
   1. FCPXML media-rep / format / 路徑重新連結 → 解決 Media Offline。
@@ -136,7 +136,7 @@ def rebuild(prefix: str, stabilize: bool, shake_threshold: float, effects: bool 
     from backend.util.media_prep import prepare_still
     prep_dir = str(MEDIA_DIR / "_prepared")
     stab_dir = MEDIA_DIR / "_stabilized"   # stabilize_clips.py 產的畫面穩定版
-    _JUNK = ("字幕", "分鏡腳本", "測試", "subtitle", "storyboard")
+    _JUNK = ("字幕", "分鏡腳本", "測試", "方案1", "方案2", "父子冒險")
     relinked = missing = dropped = prepped = stabilized = 0
     for shot in storyboard:
         raw = shot.get("file_path") or shot.get("media_file") or ""

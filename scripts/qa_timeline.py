@@ -12,7 +12,7 @@
 
 用法：
   .venv/bin/python scripts/qa_timeline.py                       # 掃專案根目錄所有 *.fcpxml
-  .venv/bin/python scripts/qa_timeline.py my_trip
+  .venv/bin/python scripts/qa_timeline.py 2026_單車環島_父子冒險紀錄片
   .venv/bin/python scripts/qa_timeline.py --fcpxml a.fcpxml --srt a.srt
   .venv/bin/python scripts/qa_timeline.py --audio 成片.wav       # 額外量響度 (pyloudnorm)
 

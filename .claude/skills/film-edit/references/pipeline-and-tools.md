@@ -82,6 +82,21 @@
 
 ---
 
+## 階段 4.5 — 片頭 / 片尾（**新，`scripts/build_bookends.py`**）
+
+片頭片尾變成**獨立段落**（`segment` 欄位），不走 highlight_engine 常規流程。
+自動挑素材用**專案無關準則**（地理/場景分散、每日 top、favorite、`keywords` tag `#片頭`/`#返家`/`#花絮`），
+所以換專案也能自動找到對應素材。片名卡/片尾卡用 PIL 疊在 `map_clips/route_overview.jpg` 上。
+`--write` 寫回正本 `.json`（動鏡頭 → 算正式重建，先備份）。細節與 VO 規則見 `references/bookends.md`。
+
+| 工具 | 用途 |
+|---|---|
+| **現有** `make_map_clips.py` | 先產 `route_overview.jpg` 當卡片底 |
+| **PIL** | 片名卡 / 片尾卡（自動縮字級、CJK 字型 fallback、里程自動算） |
+| `highlight_engine.score_storyboard` | 借用來給候選鏡頭算分 |
+
+---
+
 ## 階段 5 — 給人類過一版：腳本 + 關鍵影像（**新，需自建產生器**）
 
 - 產出一份審閱包，讓人類在剪 timeline 前就能改：
@@ -145,7 +160,7 @@
 
 ## 安裝狀態（2026-09-02，已裝完）
 
-專案 venv 是 **Python 3.14**。清單見 `requirements-tools.txt`。
+專案 venv 是 **Python 3.14**（）。清單見 `requirements-tools.txt`。
 
 **已裝進 .venv（`.venv/bin/pip`）**：`scenedetect[opencv]` 0.7.1、`opencv-python` 5.0、`librosa` 1.0、
 `numba` 0.67、`scikit-learn` 1.9、`scipy` 1.18、`matplotlib` 3.11、`pyloudnorm` 0.2、`ffsubsync` 0.5.1、
@@ -180,6 +195,7 @@ moondream/Florence-2 走 Ollama 或 transformers（torch 已在，要用再 `pip
 | `scripts/apply_notes.py` | 5→1 | 把人看完審閱包寫的批註 `notes.txt` patch 回 `<prefix>.json`。一行一條「`<鏡頭號> <動作>`」：`刪`/`換序→N`/`改口白：…`/`留白`/`換素材：檔名`/`加長到 4s`/`縮到 2s`（英文別名 del/move→N/vo:/silent/swap:/len 也吃）。`--write` 先備份。鏡頭號 = 審閱包 `#N` = storyboard `shot_index`（Live Photo A/B 共用一號 → 刪/時長套兩筆、其餘套 B）。 | `.venv/bin/python scripts/apply_notes.py notes.txt [--write]` |
 | `scripts/apply_voiceover.py` | 6 | `regenerate_voiceover` 的「不含 LLM 呼叫」版。`--dump` 印分章 payload → **Gemini 額度用完時由 Claude Code 這個 session 直接寫旁白** vo.json（`{"vo":[{"i","text"}]}`）→ `--vo` 套用 + 重匯出 fcpxml/srt/md/json（正本）。實測方案1：46 顆有旁白、1995 字、83 則字幕、末 701s、qa 0 錯。 | `.venv/bin/python scripts/apply_voiceover.py <prefix> --dump` / `--vo vo.json` |
 | `scripts/stabilize_clips.py` | 2 | 對「晃到不行」的影片做**畫面穩定**（不是裁剪掉晃動段）。ffmpeg vid.stab 兩段式 → 副本到 `<素材夾>/_stabilized/`，原檔不動，rebuild 自動 relink。`--auto` 掃全部影片列晃動比例排名、`--auto --do` 直接穩定 >門檻的、或直接給檔名。**規則版**：`rebuild --stabilize-clips [--shaky-clip 0.30]`（冪等，已有穩定版就跳過）。需 `/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg`。 | `.venv/bin/python scripts/stabilize_clips.py --auto` / `X.MP4 Y.MOV` |
+| `scripts/build_bookends.py` | 4.5 | 片頭片尾獨立段落：自動挑 cold_open 蒙太奇（地理/場景分散貪婪）+ recap（每日 top）+ return（tag/啟發式）+ bloopers（tag/mood）+ 生片名卡/片尾卡（PIL 疊 route_overview、里程自動算）。打 `segment` tag + `_bookend_generated`（冪等）。`--write` 寫正本 .json。dry-run 印所有自動挑的鏡頭給人覆核。實跑父子：4 cold_open + 8 recap + 返家 IMG_7247 + outro 拉 8s、783km。 | `.venv/bin/python scripts/build_bookends.py <prefix>` / `--write` |
 | `scripts/segment_scenes.py` | 1 | 把 storyboard 切「小章節」寫 `scene_id`/`scene_name`。**預設一個曆日一章**（依 `taken` 日期排名，不受亂序影響）；`--by-gps`/`--by-label` 再細切；**收斂到長度區間**：`--min-scene-sec`(12) 反覆把最短的碎章併進較短的鄰居（可跨日），`--max-scene-sec`(60) 對「有換日/換地點內部訊號」的長章對切；蒙太奇自動整支一章。命名 `area_name`(行政區,穩) → place.name → label。非時序會警告。`--write [--in-place] [--rewrite-title]`。 | `.venv/bin/python scripts/segment_scenes.py <prefix> [--write --in-place]` |
 
 **章節怎麼切**（`regenerate_voiceover` / 審閱包分組的依據）：

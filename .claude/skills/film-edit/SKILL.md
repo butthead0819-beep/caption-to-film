@@ -65,7 +65,8 @@ allowed-tools:
 | 1 | 章節內按時間排（修局部亂序）| `scripts/sort_shots.py --write` | 保留章節順序，章內鏡頭照 `taken` stable-sort，沒時間的跟前一顆 |
 | 2 | 畫面穩定（晃到不行的） | `scripts/stabilize_clips.py --auto --do`（門檻 shaky≥0.30） | `<素材夾>/_stabilized/` |
 | 2–7 | **主重建**（relink→穩定→Live Photo 拆→晃動剪→運鏡→字幕→匯出） | `scripts/rebuild_all_projects.py --stabilize --stabilize-clips` | `<prefix>.fcpxml` / `_字幕.srt` / `_分鏡腳本.md` |
-| 4 | 地圖過場片段 | `scripts/make_map_clips.py --storyboard <prefix>.json --per-day` | `map_clips/` + manifest（每章開頭插一張） |
+| 4 | 地圖過場片段 | `scripts/make_map_clips.py --storyboard <prefix>.json --per-day` | `map_clips/` + manifest（每章開頭插一張、`route_overview.jpg`） |
+| 4.5 | **片頭 / 片尾**（獨立段落、另外挑素材、生片名卡/片尾卡） | `scripts/build_bookends.py <prefix>`（dry-run）→ `--write` | 正本 `.json` 加 `segment` tag + `bookends/*.jpg` + `bookend_config` |
 | 5 | **過稿包** | `scripts/build_review_packet.py <prefix>` | `<prefix>_審閱包.html` |
 | ⬛ | **看過稿包**、批註 | 寫一個純文字檔 `notes.txt`，一行一條：`<鏡頭號> <動作>`。動作：`刪` / `換序→N` / `改口白：…` / `留白` / `換素材：檔名` / `加長到 4s` / `縮到 2s` | `notes.txt` |
 | 5→1 | 回饋 patch | `scripts/apply_notes.py notes.txt --write`（先備份 `.json`） | 更新的 `<prefix>.json` |
@@ -103,7 +104,8 @@ allowed-tools:
 
 - 精華篩選 / 進片判斷 → `references/highlight-scoring.md`
 - 鏡頭長度、轉場、蒙太奇、A/B-roll 疊軌 → `references/montage-and-abroll.md`
-- 中文字幕切分/樣式/Resolve SRT 流程 / 旁白密度與接縫 → `references/subtitles-zh.md`
+- 中文字幕切分/樣式/Resolve SRT 流程 / 旁白密度與接縫 / 旁白主述去重複 → `references/subtitles-zh.md`
+- 片頭 / 片尾獨立段落 / `segment` 欄位 / 自動挑素材準則 / 片名卡片尾卡 → `references/bookends.md`
 - FCPXML 結構 / Media Offline / Resolve 匯入行為 → `references/fcpxml-resolve.md`
 - 照片可抽欄位 + 應用（faces→對焦、labels→調色/主題、GPS→地圖）→ `references/photo-metadata.md`
 - GPS → 地圖過場片段 → `references/map-clips.md`
@@ -128,6 +130,7 @@ allowed-tools:
 2b. **章與章的接縫**。章尾留鉤子（提問 / 預告 / 情緒未完 / 或直接留白讓畫面收），章首接住或翻轉（時間或地點的跳接、establishing 空景 / 地圖片段當過場）。相鄰兩章的鉤子+接句是一放一收的對話，不要兩句都在總結。視覺橋 = `make_map_clips --per-day` 的地圖片段；聲音橋 = `regenerate_voiceover` 的 seam 標記。接縫容許 1–2s 純環境音呼吸。
 3. **A-roll 扛故事，B-roll 補畫面**。聲音（旁白/訪談）在底軌連續不斷，上面一軌切 B-roll 換畫面、藏剪接點。
 4. **留白**。不是每個鏡頭都要說話；環境音 + 音樂 bed 的呼吸段落讓片子不喘。
+4b. **片頭片尾是獨立段落，不是正片的頭尾兩顆**。`build_bookends.py` 從獨立素材池（用專案無關的準則：地理/場景類型分散、每日 top、favorite、tag）組出風景蒙太奇冷開場 + 片名卡 + 回顧蒙太奇 + 定格句點 + 返家 + 片尾卡 + 花絮，打 `segment` tag。這些鏡頭 highlight select 一律保留、regen-vo 一律靜默（outro 除外）。見 `references/bookends.md`。
 5. **先選片再排節奏再套效果**。highlight 篩選 → 排序 → ken burns / 調色 / 字幕。
 6. **匯出目標決定寫法**。這個團隊的下游是 DaVinci Resolve → 字幕走 SRT 軌不走 `<title>`，每個 `<format>` 都要 `frameDuration`。
 

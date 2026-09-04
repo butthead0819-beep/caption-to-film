@@ -15,7 +15,7 @@ scene_title 改成 `Day{d}【{name}】`。
 輸出預設到 `<prefix>_scenes.json`（副本，不動正本）；`--in-place` 才寫正本 .json。
 
 用法：
-  .venv/bin/python scripts/segment_scenes.py my_trip            # 預覽
+  .venv/bin/python scripts/segment_scenes.py 2026_單車環島_父子冒險紀錄片            # 預覽
   .venv/bin/python scripts/segment_scenes.py <prefix> --write                        # 寫副本
   .venv/bin/python scripts/segment_scenes.py <prefix> --write --in-place --rewrite-title
   .venv/bin/python scripts/segment_scenes.py <prefix> --day-gap 5 --move-km 1.2 --by-label

@@ -9,7 +9,7 @@ World Imagery 衛星圖、畫上路線與 pin → 存到 map_clips/，並輸出 
 
 用法:
   .venv/bin/python scripts/make_map_clips.py
-  .venv/bin/python scripts/make_map_clips.py --storyboard my_trip.json
+  .venv/bin/python scripts/make_map_clips.py --storyboard 2026_單車環島_方案1_全素材完整版.json
 """
 
 import argparse
@@ -30,7 +30,7 @@ import re as _re
 
 
 def _scene_caption(scene: str, bracket: bool = False) -> str:
-    """「Day 4【某章名】：某地名」→ bracket=False→「某地名」；bracket=True→「某章名」。"""
+    """Day 4【縱谷與稻田】：大坡池 → bracket=False→「大坡池」；bracket=True→「縱谷與稻田」。"""
     s = str(scene or "")
     b = _re.search(r"【(.+?)】", s)
     if bracket and b:
@@ -244,7 +244,7 @@ def main():
                         "ken_burns": {"type": "zoom",
                                       "start": {"scale": 1.0, "x": 0.0, "y": 0.0},
                                       "end": {"scale": 1.18, "x": 0.0, "y": 0.0}, "fit_mode": False},
-                        "caption": "路線總覽"})
+                        "caption": "環島路線"})
 
     # 海拔剖面 (角落疊圖用，透明底)
     alts = [(j, p["alt"]) for j, p in enumerate(pts) if p["alt"] is not None]

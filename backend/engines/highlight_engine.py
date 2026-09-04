@@ -200,6 +200,11 @@ def select_highlights(
     force(0, "開場")
     force(n - 1, "結尾")
 
+    # 片頭 / 片尾獨立段落（build_bookends.py 打的 segment tag）一律保留、不參與去重
+    for i, s in enumerate(storyboard):
+        if s.get("segment") and s.get("segment") != "body":
+            force(i, f"片頭片尾：{s['segment']}")
+
     if mode == "narrative":
         # 旁白鏡頭全保留；其餘低門檻，只剔除重複 / 明顯超晃
         for i, s in enumerate(storyboard):
