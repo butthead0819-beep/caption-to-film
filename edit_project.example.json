@@ -1,0 +1,5 @@
+{
+  "_comment": "複製成 edit_project.json。所有 pipeline 腳本從這裡讀素材夾與 prefix。",
+  "media_dir": "~/Pictures/my_trip",
+  "prefix": "my_trip"
+}

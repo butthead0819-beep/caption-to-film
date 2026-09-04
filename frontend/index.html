@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iMovie Script & Storyboard Studio ｜ 智慧照片說明欄與剪片腳本生成器</title>
+  <meta name="description" content="讀取 iOS 照片說明欄回憶、Live Photo 動態、GPS與EXIF，結合 AI 視覺裁切建議，編譯為專業影片分鏡腳本">
+  
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- 頂部 Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo-icon">🎬</div>
+        <div>
+          <h1>iMovie Script Studio</h1>
+          <p class="tagline">iOS 照片說明欄 × Live Photo × 智慧取景裁切 × AI 分鏡口白編譯</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-demo-data" class="btn btn-secondary">⚡ 載入展示示範素材</button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <!-- 步驟 1: 素材匯入與設定區 -->
+      <section class="card config-section">
+        <div class="card-header">
+          <h2><span class="step-num">1</span> 匯入照片/影片與設定剪輯需求</h2>
+        </div>
+        
+        <div class="grid-2col">
+          <!-- 來源輸入 -->
+          <div class="form-group">
+            <div class="source-tabs">
+              <button type="button" class="tab-btn active" id="tab-apple-photos">🍎 Apple 相簿直讀</button>
+              <button type="button" class="tab-btn" id="tab-local-folder">📂 本機資料夾</button>
+              <button type="button" class="tab-btn" id="tab-upload">📤 拖曳上傳</button>
+            </div>
+
+            <!-- Apple Photos 相簿直讀面板 -->
+            <div class="source-panel active" id="panel-apple-photos">
+              <label for="select-apple-album">🍎 選擇 macOS 照片 App 相簿：</label>
+              <div class="input-with-button">
+                <select id="select-apple-album" class="form-select">
+                  <option value="">載入中 / 點擊右側重新整理...</option>
+                </select>
+                <button id="btn-refresh-albums" class="btn btn-secondary" title="重新整理相簿清單">🔄</button>
+                <button id="btn-scan-apple-album" class="btn btn-primary">讀取相簿</button>
+              </div>
+              <p class="input-hint">✨ 直接讀取 Apple Photos 資料庫：100% 保留 iPhone 說明欄 (Caption) 與 Live Photo 原始動態！</p>
+            </div>
+
+            <!-- 本機資料夾面板 -->
+            <div class="source-panel" id="panel-local-folder" style="display: none;">
+              <label for="input-folder-path">📂 本機資料夾路徑：</label>
+              <div class="input-with-button">
+                <input type="text" id="input-folder-path" placeholder="~/Pictures/KyotoTrip" class="form-input">
+                <button id="btn-scan-folder" class="btn btn-primary">掃描資料夾</button>
+              </div>
+              <p class="input-hint">支援包含 HEIC、JPG、PNG、MOV、MP4 的資料夾，自動讀取 iOS 說明欄與 Live Photo</p>
+            </div>
+
+            <!-- 拖曳上傳面板 -->
+            <div class="source-panel" id="panel-upload" style="display: none;">
+              <div class="drop-zone" id="drop-zone">
+                <input type="file" id="file-input" multiple accept="image/*,video/*,.heic,.heif,.mov,.mp4" style="display: none;">
+                <div class="drop-content">
+                  <span class="drop-icon">📁</span>
+                  <p>點擊或拖曳照片/影片至此處上傳</p>
+                  <span class="drop-subtext">支援 iOS 照片說明 (Caption)、Live Photo 影片</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 需求 Prompt 與設定 -->
+          <div class="form-group">
+            <label for="input-user-prompt">🎯 您的剪輯需求 Prompt：</label>
+            <textarea id="input-user-prompt" rows="3" class="form-input" placeholder="例如：我想剪一部溫馨感人的 90 秒旅行生活紀錄片，口白要真誠感性，結合照片裡留下的回憶字句，音樂搭配輕柔木吉他。"></textarea>
+            
+            <div class="grid-3col mt-3">
+              <div>
+                <label for="select-style">🎨 影片風格：</label>
+                <select id="select-style" class="form-select">
+                  <option value="自然感人旅行Vlog">自然感人旅行 Vlog</option>
+                  <option value="電影感紀錄片">電影感紀錄片 (Cinematic)</option>
+                  <option value="快節奏短影音Reels">快節奏短影音 (Reels/Shorts)</option>
+                  <option value="溫暖回憶敘事">溫暖家庭/友情回憶敘事</option>
+                  <option value="幽默輕鬆生活日常">幽默輕鬆生活日常</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="select-ratio">📐 目標影片比例：</label>
+                <select id="select-ratio" class="form-select">
+                  <option value="16:9">16:9 (橫片 / YouTube / 電影)</option>
+                  <option value="9:16">9:16 (直片 / IG Reels / TikTok)</option>
+                  <option value="4:3">4:3 (復古膠卷質感)</option>
+                  <option value="1:1">1:1 (方形貼文)</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="input-duration">⏱️ 預估總片長 (秒)：</label>
+                <input type="number" id="input-duration" class="form-input" placeholder="自動 (依素材計算)" min="10" max="600">
+              </div>
+            </div>
+
+            <div class="action-row mt-4">
+              <button id="btn-generate-all" class="btn btn-accent btn-large" disabled>
+                ✨ 開始智慧分析與編譯腳本
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 步驟 2: 素材時間軸與說明欄檢視 -->
+      <section class="card timeline-section" id="section-media-timeline" style="display: none;">
+        <div class="card-header flex-between">
+          <h2><span class="step-num">2</span> 素材清單、iOS 說明欄與裁切取景 (<span id="media-count">0</span> 項)</h2>
+          <div class="legend-tags">
+            <span class="badge badge-live">Live Photo 動態</span>
+            <span class="badge badge-caption">帶有回憶說明</span>
+            <span class="badge badge-gps">GPS 地理定位</span>
+          </div>
+        </div>
+
+        <div class="media-grid" id="media-grid-container">
+          <!-- 動態插入媒體卡片 -->
+        </div>
+      </section>
+
+      <!-- 步驟 3: 產出的分鏡腳本與口白 -->
+      <section class="card script-section" id="section-script-result" style="display: none;">
+        <div class="card-header flex-between">
+          <div>
+            <h2><span class="step-num">3</span> 產出的分鏡剪片腳本 (Movie Script & Storyboard)</h2>
+            <p class="subtitle" id="script-subtitle">依據素材與需求自動生成</p>
+          </div>
+          <div class="export-buttons">
+            <button class="btn btn-secondary" id="btn-export-md">📥 下載 Markdown 報告</button>
+            <button class="btn btn-secondary" id="btn-export-json">💾 下載 JSON</button>
+            <button class="btn btn-secondary" id="btn-export-fcpxml">🎬 匯出 FCPXML 剪輯專案</button>
+          </div>
+        </div>
+
+        <!-- 腳本大綱與聲音設計概覽 -->
+        <div class="script-overview-box">
+          <div class="overview-item">
+            <span class="label">💡 故事梗概 (Logline)：</span>
+            <p id="script-logline-text" style="font-weight: 600; color: #fff;">-</p>
+          </div>
+          <div class="overview-item">
+            <span class="label">📖 情感核心與故事弧線：</span>
+            <p id="script-theme-text">-</p>
+          </div>
+          <div class="overview-item">
+            <span class="label">🎬 導演剪輯手記 (Director's Notes)：</span>
+            <p id="script-notes-text" style="color: #cbd5e1; font-style: italic;">-</p>
+          </div>
+          <div class="overview-item">
+            <span class="label">🎵 聲音與配樂指引：</span>
+            <p id="script-soundtrack-text">-</p>
+          </div>
+        </div>
+
+        <!-- 分鏡清單 -->
+        <div class="storyboard-list" id="storyboard-list-container">
+          <!-- 動態插入分鏡項目 -->
+        </div>
+      </section>
+    </main>
+
+    <!-- 載入中 Spinner Modal -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+      <div class="loading-box">
+        <div class="spinner"></div>
+        <h3 id="loading-title">正在深度分析影像與編譯腳本...</h3>
+        <p id="loading-desc">正在讀取照片構圖焦點、安全裁切座標與語音旁白</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

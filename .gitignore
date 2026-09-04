@@ -1,0 +1,58 @@
+.venv/
+.venv-stt/
+.env
+__pycache__/
+*.pyc
+scratch/
+.DS_Store
+
+# 每支影片的專案設定與產出（見 scripts/_config.py）
+edit_project.json
+*.fcpxml
+*.srt
+*_分鏡腳本.md
+*_storyboard.md
+*.json.bak-*
+subtitle_preset.json
+
+# 相簿/資料夾 metadata 快取
+scripts/photos_meta.json
+*_grade_hints.json
+
+# 階段 0 候選鏡頭偵測 + YOLO 權重
+scripts/shot_candidates.json
+scripts/shot_candidates_thumbs/
+scripts/.weights/
+yolov8*.pt
+
+# 階段 5 審閱包
+*_審閱包.html
+*_review_packet.html
+
+# 章節切分副本
+*_scenes.json
+
+# GPS 地圖片段 + 地名查詢快取
+map_clips/
+bookends/
+scripts/poi_cache.json
+
+# 素材夾裡的加工副本（保險）
+_prepared/
+_stabilized/
+
+# 衍生剪法輸出
+*_narrative*.fcpxml
+*_highlight*.fcpxml
+*_montage*.fcpxml
+*_abroll*.fcpxml
+
+# render_video / qa_render 產出
+*.mp4
+qa_render_frames/
+
+# 專案 storyboard JSON（你的片子，不進 repo）—— 白名單掉範例與設定
+*.json
+!*.example.json
+!tests/**/*.json
+!scripts/shot_candidates.example.json
