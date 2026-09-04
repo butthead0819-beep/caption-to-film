@@ -20,6 +20,7 @@ import datetime as _dt
 import json
 import math
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -256,13 +257,27 @@ def make_cards(cfg: dict, km: float, date_range: str) -> tuple[Path, Path]:
     return tp, ep
 
 
+ROUTE_BURN = ROOT / "map_clips" / "route_burn.mp4"
+
+
+def _probe_dur(path: Path) -> float:
+    try:
+        out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                              "-of", "csv=p=0", str(path)], capture_output=True, text=True)
+        return round(float(out.stdout.strip()), 2)
+    except Exception:  # noqa: BLE001
+        return 11.0
+
+
 # ── 組裝 ────────────────────────────────────────────────────────────────────
 def _card_shot(path: Path, idx: int, segment: str, dur: float, caption: str) -> dict:
+    vid = path.suffix.lower() in (".mp4", ".mov", ".m4v")
     return {
         "shot_index": idx, "scene_title": f"__{segment}__", "media_file": path.name,
-        "media_type": "photo", "is_live_photo": False, "live_photo_usage": None,
+        "media_type": "video" if vid else "photo", "is_live_photo": False, "live_photo_usage": None,
         "duration_seconds": dur, "shot_type": "全景 (Wide Shot)",
-        "visual_description": caption, "crop_focus": "畫面中央", "camera_motion": "Slow Zoom-in",
+        "visual_description": caption, "crop_focus": "畫面中央",
+        "camera_motion": "Static" if vid else "Slow Zoom-in",
         "voiceover": "", "bgm_cue": "", "sfx_cue": "", "transition": "Cross Dissolve",
         "file_path": str(path), "voiceover_kind": "none", "is_canvas": False,
         "segment": segment, "_bookend_generated": True,
@@ -335,7 +350,14 @@ def build(script: dict, cfg: dict) -> dict:
     n = max((int(s.get("shot_index") or 0) for s in body), default=0)
     head = [_clip_copy(s, "cold_open", open_durs[min(k, len(open_durs) - 1)])
             for k, s in enumerate(open_shots)]
-    head.append(_card_shot(tp, n + 1, "title", 4.0, cfg["film_title"] or cfg["_project_title"]))
+    # 片名段：有燃燒火線動畫（route_burn.py 產）就用它，否則用靜態片名卡
+    if ROUTE_BURN.exists():
+        head.append(_card_shot(ROUTE_BURN, n + 1, "title", _probe_dur(ROUTE_BURN),
+                               cfg["film_title"] or cfg["_project_title"]))
+        print(f"片名段：route_burn.mp4（{_probe_dur(ROUTE_BURN)}s 燃燒火線）")
+    else:
+        head.append(_card_shot(tp, n + 1, "title", 4.0, cfg["film_title"] or cfg["_project_title"]))
+        print("片名段：靜態片名卡（要動畫版先跑 route_burn.py --title ...）")
 
     outro = body.pop() if body else None
     if outro is not None:

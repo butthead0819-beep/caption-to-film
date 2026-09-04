@@ -160,7 +160,7 @@
 
 ## 安裝狀態（2026-09-02，已裝完）
 
-專案 venv 是 **Python 3.14**（）。清單見 `requirements-tools.txt`。
+專案 venv 是 **Python 3.14**。清單見 `requirements-tools.txt`。
 
 **已裝進 .venv（`.venv/bin/pip`）**：`scenedetect[opencv]` 0.7.1、`opencv-python` 5.0、`librosa` 1.0、
 `numba` 0.67、`scikit-learn` 1.9、`scipy` 1.18、`matplotlib` 3.11、`pyloudnorm` 0.2、`ffsubsync` 0.5.1、
