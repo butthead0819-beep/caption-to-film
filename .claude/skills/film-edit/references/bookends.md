@@ -82,10 +82,13 @@
    `mood` 含 搞笑/尷尬/驚訝/無奈，且**沒被 body select 選中**（`keep == False`）。取 3 顆。
 3. 找不到就跳過。
 
-### title / endcard — 卡片（PIL 生成）
-背景 = `map_clips/route_overview.jpg`（`make_map_clips.py` 產的全台灣衛星圖 + 紅線）。
-- `title`：紅線只畫到一半（或 ken_burns 慢推）+ 片名 + 副標。
-- `endcard`：完整整圈紅線 + 「環島 {km} 公里 · {天數} 天 · {年月}」+ 題獻。
+### title — 片名段
+**優先用燃燒火線動畫**：`scripts/route_burn.py` 產的 `map_clips/route_burn.mp4`（見 `map-clips.md`
+「燃燒火線片頭」）。`build_bookends.py` 偵測到就用它當 `title` 段（video、`--title` 已把片名燒在拉遠後的尾段）。
+沒有 mp4 → 退回 PIL 靜態片名卡 `bookends/title_card.jpg`（背景 = `route_overview.jpg`，片名 + 副標，自動縮字級）。
+
+### endcard — 片尾卡（PIL 生成）
+背景 = `map_clips/route_overview.jpg`。完整整圈紅線 + 「環島 約 {km} 公里 · {日期範圍}」+ sign_off + 題獻。
 - `km` 自動算：storyboard 有 GPS 的鏡頭照 `taken` 排序，相鄰 haversine 加總。
 - 文字來自 storyboard 新欄位 `bookend_config`（見下）。
 - 沒有 `route_overview.jpg` → 用純黑底 + 白字，仍可跑（印警告叫人先跑 `make_map_clips`）。
@@ -122,6 +125,7 @@ Gemini 編劇（`script_engine`）產 storyboard 時就可以填 `film_title` / 
 ```
 # 排序 / 精華篩選之後、地圖過場之後、--regen-vo 之前
 .venv/bin/python scripts/make_map_clips.py --storyboard <prefix>.json --per-day   # 先要有 route_overview
+.venv/bin/python scripts/route_burn.py --storyboard <prefix>.json --title "片名"   # 燃燒火線片頭（選配、~70s）
 .venv/bin/python scripts/build_bookends.py <prefix>            # dry-run：印出自動挑的片頭片尾鏡頭
 .venv/bin/python scripts/build_bookends.py <prefix> --write    # 寫回正本 .json（冪等，先備份）
 .venv/bin/python scripts/build_review_packet.py <prefix>       # 審閱包會多「片頭 / 片尾」區塊
@@ -137,5 +141,6 @@ Gemini 編劇（`script_engine`）產 storyboard 時就可以填 `film_title` / 
 
 - `build_review_packet.py`：片頭 / 片尾區塊 + 縮圖 + 「這幾顆是自動挑的，notes.txt 可改」提示。
 - `apply_notes.py`：`片頭+/-`、`片尾+/-`、`返家：`、`花絮+/-` 動作 → patch `segment` 欄位。
-- `render_video.py` / `fcpxml_exporter.py`：`title`/`endcard` 的紅線動畫 ken_burns、`bloopers` 疊字卡軌。
+- ~~`title` 紅線動畫~~ → 已做（`route_burn.py`）。剩 `endcard` 可考慮也做成「整圈快速燒起來」的動畫。
+- `render_video.py` / `fcpxml_exporter.py`：`bloopers` 疊工作人員字卡軌。
 - 音樂：片頭蒙太奇、recap 需要獨立音樂段（階段 6），目前只留環境音。

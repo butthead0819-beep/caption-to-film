@@ -1,12 +1,17 @@
 """Live Photo 處理：微動態 → 定格。
 
-每個 Live Photo 鏡頭拆成兩段：
+**只有畫面裡有人 (`has_people`) 的鏡頭才拆成 A+B**：
   A. 動態：取 Live Photo 短片 (MOV) 中「最穩定」的 ~1.4 秒，去掉頭尾漂移，
      不加變焦 (只做填滿)，不掛字幕。
   B. 定格：切到配對的靜態照片，補足鏡頭剩餘長度，走緩慢 Ken Burns，
      字幕與口白都落在這一段。
 
-找不到配對照片時退回：只用去頭尾、夾到素材真實長度的單一動態片段。
+**沒有人的鏡頭不定格**：只出去頭尾的單一微影片 (自然長度、不補到原長)，直接切下一顆。
+每顆都「微動態→定格→Ken Burns」會讓整片一直停頓；只有人臉值得停下來看。
+旁白不綁單顆鏡頭 —— 一章由多顆鏡頭填滿、那章總秒數就是可用時間，字幕 cue 會自然
+跨鏡頭邊界延伸，所以沒人的單一片段照樣保留 `voiceover`。
+
+找不到配對照片、或畫面沒人時，都退回：去頭尾、夾到素材真實長度的單一動態片段。
 """
 
 from __future__ import annotations
@@ -65,13 +70,26 @@ def _stable_window(mov_path: str, mdur: float, live_len: float, analyze: bool = 
     return round(a, 3), round(a + live_len, 3)
 
 
+def _shot_has_people(shot: dict, photos_meta: dict) -> bool:
+    """畫面裡有沒有人。目前沒有人臉框資料，用場景標籤的 `has_people`
+    (Gemini / local_scene_labels 產)，退而用 persons / faces。
+    沒有 metadata 的鏡頭當作「沒人」→ 直切，不定格。
+    """
+    from ..util.photos_meta import meta_for
+
+    rec = meta_for(shot, photos_meta)
+    return bool(rec.get("has_people") or rec.get("persons") or rec.get("faces"))
+
+
 def expand_live_photos(
     storyboard: List[dict],
     search_dirs: Optional[List[str]] = None,
     live_seconds: float = LIVE_SECONDS,
 ) -> List[str]:
     from ..util.media_probe import probe_video
+    from ..util.photos_meta import load_photos_meta
 
+    photos_meta = load_photos_meta()
     changes: List[str] = []
     out: List[dict] = []
 
@@ -106,8 +124,13 @@ def expand_live_photos(
         a, b = _stable_window(str(mov), mdur, live_len, analyze=mdur > 2.6) \
             if live_len >= MIN_LIVE_SECONDS else (trim, max(trim, mdur - trim))
         still_len = round(total - (b - a), 2)
+        # 拆成「微動態 + 定格」的條件：畫面有人 (值得停下來看)，或這顆被
+        # 明確標成要留長 (is_canvas 感觸鏡頭 / apply_notes 的「加長到 Ns」設 linger)。
+        # 其餘 (純空景/風景) → 只播會動的微影片，直接切，不定格。
+        keep_freeze = _shot_has_people(shot, photos_meta) or shot.get("is_canvas") or shot.get("linger")
+        has_people = bool(keep_freeze)
 
-        if live_len >= MIN_LIVE_SECONDS and still and still_len >= MIN_STILL_SECONDS:
+        if keep_freeze and live_len >= MIN_LIVE_SECONDS and still and still_len >= MIN_STILL_SECONDS:
             motion = copy.deepcopy(shot)
             motion.update({
                 "file_path": str(mov), "media_file": Path(mov).name, "media_type": "video",
@@ -140,7 +163,14 @@ def expand_live_photos(
                 "source_out": round(trim + keep, 3), "duration_seconds": keep,
             })  # 保留 is_live_photo=True → normalize+rebuild 可重複執行不失真
             out.append(single)
-            why = "無配對照片" if not still else ("鏡頭太短、無定格空間" if total < live_len + MIN_STILL_SECONDS else "動態段過短")
+            if not has_people:
+                why = "無人臉·不定格直切"
+            elif not still:
+                why = "無配對照片"
+            elif total < live_len + MIN_STILL_SECONDS:
+                why = "鏡頭太短、無定格空間"
+            else:
+                why = "動態段過短"
             changes.append(f"Shot {idx:02d} ({stem}): 去頭尾夾到 {keep:.1f}s ({why})")
 
     storyboard[:] = out

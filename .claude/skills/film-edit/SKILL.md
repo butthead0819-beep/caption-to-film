@@ -64,9 +64,10 @@ allowed-tools:
 | 1 | 切小章節 | `scripts/segment_scenes.py <prefix> --write --in-place` | 每鏡 `scene_id`/`scene_name`（曆日>GPS>label） |
 | 1 | 章節內按時間排（修局部亂序）| `scripts/sort_shots.py --write` | 保留章節順序，章內鏡頭照 `taken` stable-sort，沒時間的跟前一顆 |
 | 2 | 畫面穩定（晃到不行的） | `scripts/stabilize_clips.py --auto --do`（門檻 shaky≥0.30） | `<素材夾>/_stabilized/` |
-| 2–7 | **主重建**（relink→穩定→Live Photo 拆→晃動剪→運鏡→字幕→匯出） | `scripts/rebuild_all_projects.py --stabilize --stabilize-clips` | `<prefix>.fcpxml` / `_字幕.srt` / `_分鏡腳本.md` |
+| 2–7 | **主重建**（relink→穩定→Live Photo 拆→運鏡→字幕→匯出） | `scripts/rebuild_all_projects.py --stabilize-clips` | `<prefix>.fcpxml` / `_字幕.srt` / `_分鏡腳本.md` |
 | 4 | 地圖過場片段 | `scripts/make_map_clips.py --storyboard <prefix>.json --per-day` | `map_clips/` + manifest（每章開頭插一張、`route_overview.jpg`） |
-| 4.5 | **片頭 / 片尾**（獨立段落、另外挑素材、生片名卡/片尾卡） | `scripts/build_bookends.py <prefix>`（dry-run）→ `--write` | 正本 `.json` 加 `segment` tag + `bookends/*.jpg` + `bookend_config` |
+| 4.5 | 燃燒火線片頭（選配） | `scripts/route_burn.py --storyboard <prefix>.json --title "片名"` | `map_clips/route_burn.mp4`（導火線燒一圈 → 拉遠 → 片名） |
+| 4.5 | **片頭 / 片尾**（獨立段落、另外挑素材、生片名卡/片尾卡） | `scripts/build_bookends.py <prefix>`（dry-run）→ `--write` | 正本 `.json` 加 `segment` tag + `bookends/*.jpg` + `bookend_config`；`title` 段有 route_burn.mp4 就用它 |
 | 5 | **過稿包** | `scripts/build_review_packet.py <prefix>` | `<prefix>_審閱包.html` |
 | ⬛ | **看過稿包**、批註 | 寫一個純文字檔 `notes.txt`，一行一條：`<鏡頭號> <動作>`。動作：`刪` / `換序→N` / `改口白：…` / `留白` / `換素材：檔名` / `加長到 4s` / `縮到 2s` | `notes.txt` |
 | 5→1 | 回饋 patch | `scripts/apply_notes.py notes.txt --write`（先備份 `.json`） | 更新的 `<prefix>.json` |
@@ -88,12 +89,14 @@ allowed-tools:
 |---|---|---|
 | **節奏** | 全景≥3s、中景 2–3s、特寫 1.5–2s、蒙太奇節拍 0.8–1.5s | 原則 1 |
 | **旁白密度** | 章長 × 6 字/秒 × **0.85**（coverage）；留白過半的鏡頭沒有旁白 | `apply_voiceover.COVERAGE` / `regenerate_voiceover(coverage=)` |
-| **旁白寫法** | 用「我的口氣」把**每個章節的故事講清楚**（不是串場、不是俳句）。一章的句子接成一條連續敘述 → 裁到章長 → 依鏡頭長度比例分回各鏡頭 | `apply_voiceover` / `script_engine._trim_to_chars` + `_distribute_text` |
+| **旁白寫法** | **像旅行回來跟好朋友分享精華 —— 輕鬆、帶自嘲、挑重點講、完整口語句（12–28 字）**，不是流水帳也不是說明牌。一章接成一條連續敘述，不綁單顆鏡頭秒數（字幕 cue 會跨快鏡頭延伸）。片子裡不講品牌/AI 工具名（Gemini/Google→`patch_vo.TEXT_SUB` 換掉） | `gen_vo_gemini` PASS2_SYS / `patch_vo` |
+| **感觸軌（reflection）** | 通讀心得寫成一段連續內心話，跟旅程情緒走：**開場期待 → 路上掙扎 → 最長那顆（夕陽）領悟 → 收尾**，不一開場就丟最重的體悟。Gemini 對短畫布常只 1 句/重複 → 6 顆畫布直接在 `patch_vo.REFLECTION` 人工定稿。位置 = 畫面下方 **80%**（`reflection_y_frac`），不擋主體 | `gen_vo_gemini` PASS3_SYS / `patch_vo.REFLECTION` / `subtitle_preset` |
+| **章間轉場** | `render_video --xfade` 預設 **0.8s** 交叉溶接（章內硬切）。資訊軌在章界前提早收，免疊字 | `render_video._concat` / `chyron_ass` |
 | **章與章接縫** | 章尾留鉤子（提問/預告/留白），章首接住或翻轉；一放一收。視覺橋 = 地圖過場片段 | 原則 2b |
 | **章節切法** | 敘事片用 Gemini `scene_title【…】`；否則 `segment_scenes` 的曆日>GPS>label，收斂到 12–60s/章 | 原則 1b |
 | **字幕排版** | 白字+黑描邊(3–4)+柔陰影；每行 ≤16 全形字、每則 ≤2 行、每則 ≥2s 絕不壓、下三分之一 | `subtitle_engine` 常數 / `references/subtitles-zh.md` |
-| **晃動** | 大幅晃動段 → **剪掉**（`--stabilize`，shake_threshold 3.2）；整支晃到不行 → **穩定畫面**（`--stabilize-clips`，shaky_fraction ≥0.30，vid.stab） | `motion_stability` / `stabilize_clips` |
-| **Live Photo** | 每個拆 A(微動態去頭尾~1.4s 無旁白) + B(配對靜態定格，帶字幕) | `livephoto_engine` |
+| **晃動** | **預設只用 `--stabilize-clips`**（整支晃 → vid.stab 穩定版，長度不動，shaky ≥0.30）。`--stabilize`（挖掉晃動段、會把鏡頭切短）是 opt-in、少用 —— 它會砍 canvas 感觸鏡頭（`motion_stability` 已加 `is_canvas` 跳過），非 canvas 的也會變短，v1–v6 主線都沒用它 | `motion_stability` / `stabilize_clips` |
+| **Live Photo** | **只有畫面有人 (`has_people`) 的鏡頭**才拆 A(微動態去頭尾~1.4s 無旁白) + B(配對靜態定格 Ken Burns，帶字幕)。沒人的鏡頭 → 只播去頭尾的微影片(自然長度、不補到原長)、直接切，不定格。理由：每顆都「動→定格→Ken Burns」會讓整片一直停頓；只有人臉值得停下來看。`is_canvas` 感觸鏡頭 / `apply_notes` 的「加長到 ≥3s」(設 `linger`) 例外，仍走定格撐時間。旁白不受影響：一章由多顆鏡頭填滿、字幕 cue 會跨鏡頭延伸 | `livephoto_engine._shot_has_people` |
 | **運鏡** | 照片用 SmartCrop 焦點推近、全景左右平移、比例落差大用 fit 不硬填；有人臉框就對焦人臉 | `effects_engine` |
 | **調色** | 灰世界白平衡 + 黑白點正規化 + 微飽和，疊 Apple 場景標籤 preset（sunset 暖、ocean 冷…）；在 Resolve 內跑 | `resolve_auto_grade.py --hints` |
 | **匯出目標** | **主線 = iMovie**：`render_video.py --for-imovie --grade` 出畫面鎖定版（切點/Ken Burns/調色/燒字幕當口白稿/現場音-10dB）→ 拖進 iMovie 錄旁白 + 加音樂。備線 = FCPXML → DaVinci Resolve（要精細調色時；字幕走 SRT 軌不寫 `<title>`、每個 `<format>` 要 `frameDuration`） | `render_video.py --for-imovie` / `fcpxml_exporter` |
@@ -147,6 +150,14 @@ allowed-tools:
 - **正本 `.json` 是唯一真相來源，被 `--select` 砍掉的鏡頭無法還原**。所以衍生剪法一律輸出到
   帶後綴的檔名、不碰 `.json`。曾因 `--select` 直接覆寫 `.json` 把方案1 從 125 打成 52，
   靠 `build_option1_full_narrative.py`（自帶手寫分鏡）+ `generate_options_1_and_2.py` 才救回來。
+- **`render_video` 章間 xfade：資訊軌（chyron）要在章界前提早 `xf+0.3s` 收**，否則溶接那 0.8s
+  會前後兩章「Day N」標同時出現，像 bug。`chyron_ass(xf=)` 已處理。
+- **沒音軌的影片素材（片頭路線動畫 route_burn.mp4）→ scene concat 的 `[0:a:0]` 找不到串流、
+  整個 render 中斷**。`render_video.render_shot` 已加 `_has_audio()`：影片沒音軌就補 `anullsrc`。
+- 只要片頭放地圖動畫 → 輕量走 `scripts/add_intro_map.py`（插 route_burn.mp4 到最前、
+  獨立 scene_id、`intro_card=True` 讓 gen_vo 跳過）。要整套冷開場+片名卡+片尾+花絮才走 `build_bookends.py`。
+- 感觸軌 Gemini 版對「短畫布」常只生 1 句、會換句話說重講 → 6 顆畫布的感觸建議直接在
+  `patch_vo.py` 的 `REFLECTION` dict 人工定稿（逐句取自心得原文順過）。`TEXT_SUB` 拿掉品牌/AI 工具名。
 
 ---
 

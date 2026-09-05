@@ -210,6 +210,11 @@ def apply_to_storyboard(
         if "source_in" in shot or "source_out" in shot:
             new_storyboard.append(shot)
             continue
+        # 感觸畫布鏡頭：刻意放長來鋪 reflection 字幕，不做晃動剪除
+        # (整支晃動交給 --stabilize-clips 的 vid.stab，長度不動)
+        if shot.get("is_canvas"):
+            new_storyboard.append(shot)
+            continue
         resolved = resolve_existing_path(str(raw), search_dirs)
         if not resolved or not is_video_path(resolved):
             new_storyboard.append(shot)

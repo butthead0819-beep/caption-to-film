@@ -79,9 +79,15 @@ def apply_one(shot: dict, instr: str, media_dir: Path) -> str | None:
         return f"換素材 → {p.name}"
     m = _DUR.search(instr)
     if m:
-        shot["duration_seconds"] = float(m.group(1))
+        want = float(m.group(1))
+        shot["duration_seconds"] = want
         shot.pop("source_out", None)   # 讓時長重新生效（source_in/out 會覆蓋 duration）
         shot.pop("source_in", None)
+        # Live Photo 沒人的鏡頭預設「不定格直切」；明確加長 → 要它定格撐時間
+        if shot.get("is_live_photo") and want >= 3.0:
+            shot["linger"] = True
+        elif want < 3.0:
+            shot.pop("linger", None)
         return f"時長 → {m.group(1)}s"
     return None
 

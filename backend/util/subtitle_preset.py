@@ -36,8 +36,8 @@ DEFAULTS: dict = {
         "narration_fill": "F0DFA8",  # 舊「旁白軌」= 柔和暖金（相容用）
         "reflection_fill": "E8C88C",  # 感觸軌（第一人稱人生體悟，鋪在放長的畫布鏡頭）= 琥珀
         "reflection_size_mul": 1.18,  # 感觸字比一般大
-        "reflection_center": True,    # 感觸置中，不擠在下緣跟資訊軌打架
-        "reflection_y_frac": 0.60,    # 垂直位置（螢幕高比例）：中間偏下，不壓到人臉
+        "reflection_center": True,    # 感觸水平置中，不擠在下緣跟資訊軌打架
+        "reflection_y_frac": 0.80,    # 垂直位置（螢幕高比例）：畫面下方 ~20%，不擋畫面主體
         "outline": "000000",         # 黑描邊
         "outline_px_1080": 3,        # 中文筆劃密，別超過 4
         "shadow": True,

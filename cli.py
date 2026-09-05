@@ -39,6 +39,7 @@ def main():
     parser.add_argument("--auto-stabilize-cut", action="store_true", help="自動偵測並剪除大幅晃動的影片片段")
     parser.add_argument("--shake-threshold", type=float, default=3.2, help="晃動偵測門檻 (越小越嚴格，預設 3.2)")
     parser.add_argument("--no-effects", action="store_true", help="不要自動加 Ken Burns 運鏡與填滿目標比例")
+    parser.add_argument("--use-vision-ai", action="store_true", help="對每張靜態照片調用 Gemini 視覺多模態分析（預設關閉，使用本地免費 SmartCrop 顯著性裁切）")
 
     args = parser.parse_args()
 
@@ -119,8 +120,9 @@ def main():
         print(f"  {idx:02d}. {it['file_name']}{live_tag}{loc_str} -> 說明: {caption_preview}")
 
     # 2. 視覺構圖與裁切分析
-    print(f"\n📐 步驟 2/4: 進行多模態構圖分析與 {args.ratio} 取景裁切建議 (Crop Advisor)...")
-    vision_analyzer = VisionAnalyzer(api_key=args.api_key)
+    mode_desc = "Gemini 多模態視覺" if args.use_vision_ai else "本地 SmartCrop 顯著性能量演算法 (省下 100% 圖片 Token)"
+    print(f"\n📐 步驟 2/4: 進行構圖分析與 {args.ratio} 取景裁切建議 (Crop Advisor) [模式: {mode_desc}]...")
+    vision_analyzer = VisionAnalyzer(api_key=args.api_key, use_ai=args.use_vision_ai)
     analyzed_items = []
     for it in items:
         analysis = vision_analyzer.analyze_media(it, target_aspect_ratio=args.ratio)

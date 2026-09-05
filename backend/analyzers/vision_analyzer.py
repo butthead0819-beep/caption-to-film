@@ -17,11 +17,13 @@ class VisionAnalyzer:
     並針對目標輸出比例 (16:9, 9:16 等) 提供智慧裁切框與 Ken Burns 鏡頭動態建議。
     """
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, use_ai: bool = False):
         self.api_key = api_key or config.gemini_api_key
+        self.use_ai = use_ai
         self.client = None
         self.smart_crop = SmartCropAnalyzer()
-        if self.api_key:
+        # 僅在顯式指定 use_ai=True 時才初始化 GenAI Client 進行多模態裁切
+        if self.use_ai and self.api_key:
             try:
                 self.client = genai.Client(api_key=self.api_key)
             except Exception as e:
@@ -29,7 +31,8 @@ class VisionAnalyzer:
 
     def analyze_media(self, media_item: Dict[str, Any], target_aspect_ratio: str = "16:9") -> Dict[str, Any]:
         """
-        對單一媒體項目進行多模態視覺與構圖裁切分析
+        對單一媒體項目進行構圖裁切分析。
+        預設使用本機 SmartCrop 顯著性演算法（省下 100% 圖片 Token）。
         """
         file_path = media_item["file_path"]
         caption = media_item.get("caption", "")
@@ -38,8 +41,8 @@ class VisionAnalyzer:
         height = media_item.get("height", 1080)
         is_image = media_item.get("is_image", True)
         
-        # 1. 優先透過 Gemini 多模態 API 分析
-        if self.client and is_image:
+        # 1. 僅在明確啟用 use_ai 時透過 Gemini 多模態 API 分析
+        if self.use_ai and self.client and is_image:
             try:
                 analysis = self._analyze_with_gemini(file_path, caption, target_aspect_ratio, media_item)
                 if analysis:

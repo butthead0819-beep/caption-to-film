@@ -345,10 +345,10 @@ def main():
                     help="--stabilize-clips 的晃動比例門檻（預設 0.30）")
     ap.add_argument("--no-effects", action="store_true", help="不要自動加 Ken Burns / 填滿比例")
     ap.add_argument("--only", default=None, help="只重建指定專案 prefix")
-    ap.add_argument("--select", choices=["off", "narrative", "highlight", "montage"],
-                    default="off", help="精華篩選模式 (預設 off = 全收)")
+    ap.add_argument("--select", choices=["off", "narrative", "highlight", "montage", "curate", "llm-curate"],
+                    default="off", help="精華篩選模式 (預設 off = 全收；curate = LLM 故事線起承轉合精選)")
     ap.add_argument("--select-count", type=int, default=None,
-                    help="highlight 模式的目標鏡頭數 (預設 ~總數/3)")
+                    help="highlight / curate 模式的目標鏡頭數 (預設 ~總數/3)")
     ap.add_argument("--select-shake", action="store_true",
                     help="精華篩選時分析影片晃動當扣分 (較慢，跑 ffmpeg)")
     ap.add_argument("--abroll", action="store_true",

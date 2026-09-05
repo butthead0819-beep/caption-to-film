@@ -92,7 +92,8 @@
 | 工具 | 用途 |
 |---|---|
 | **現有** `make_map_clips.py` | 先產 `route_overview.jpg` 當卡片底 |
-| **PIL** | 片名卡 / 片尾卡（自動縮字級、CJK 字型 fallback、里程自動算） |
+| **`route_burn.py`**（新） | 燃燒火線片頭動畫 → `route_burn.mp4`（PIL 逐幀 + ffmpeg，跟拍火頭→拉遠→片名） |
+| **PIL** | 片尾卡 / 靜態片名卡 fallback（自動縮字級、CJK 字型 fallback、里程 haversine 自動算） |
 | `highlight_engine.score_storyboard` | 借用來給候選鏡頭算分 |
 
 ---

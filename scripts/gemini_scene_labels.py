@@ -24,6 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from backend.config import config
+from backend.analyzers.video_sampler import extract_sampled_frames
 
 ROOT = Path(__file__).resolve().parent.parent
 META = ROOT / "scripts" / "photos_meta.json"
@@ -88,6 +89,8 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=1000, help="這次最多分析幾張")
     ap.add_argument("--sleep", type=float, default=3.0, help="每次呼叫間隔秒")
     ap.add_argument("--force", action="store_true", help="連已有 labels 的也重跑")
+    ap.add_argument("--video-interval", type=float, default=None,
+                    help="若處理長影片，指定抽樣間隔秒數（如 10.0 表示 10 秒 1 幀）；省略則只抽中點單幀")
     args = ap.parse_args()
 
     if not config.gemini_api_key:
@@ -118,14 +121,28 @@ def main() -> None:
     done = 0
     for f in todo[:args.limit]:
         st = f.stem.lower()
-        b = frame_bytes(f)
-        if not b:
-            print(f"  · 跳過 {f.name}（抽幀失敗）")
-            continue
+        
+        contents = []
+        if f.suffix.lower() in VID and args.video_interval:
+            sampled = extract_sampled_frames(f, interval_s=args.video_interval, max_dimension=1024)
+            if not sampled:
+                print(f"  · 跳過 {f.name}（抽幀失敗）")
+                continue
+            for ts, b in sampled:
+                contents.append(f"[{ts:.1f}s]")
+                contents.append(types.Part.from_bytes(data=b, mime_type="image/jpeg"))
+        else:
+            b = frame_bytes(f)
+            if not b:
+                print(f"  · 跳過 {f.name}（抽幀失敗）")
+                continue
+            contents.append(types.Part.from_bytes(data=b, mime_type="image/jpeg"))
+
+        contents.append(PROMPT)
         try:
             resp = client.models.generate_content(
                 model=config.vision_model,
-                contents=[types.Part.from_bytes(data=b, mime_type="image/jpeg"), PROMPT],
+                contents=contents,
                 config=types.GenerateContentConfig(response_mime_type="application/json"),
             )
             r = json.loads(resp.text)

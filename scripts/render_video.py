@@ -193,6 +193,12 @@ def framing_vf(kb: dict | None, dur: float, W: int, H: int, src: str, is_img: bo
             f"trim=end_frame={n},setpts=PTS-STARTPTS")
 
 
+def _has_audio(src: str) -> bool:
+    r = _sh(["ffprobe", "-v", "error", "-select_streams", "a:0",
+             "-show_entries", "stream=index", "-of", "csv=p=0", str(src)])
+    return bool(r.stdout.strip())
+
+
 def render_shot(shot: dict, dur: float, out: Path, ff: str, W: int, H: int,
                 grade: dict | None, luts_dir: Path, ambient_db: float = 0.0) -> bool:
     raw = shot.get("file_path") or shot.get("media_file") or ""
@@ -239,10 +245,15 @@ def render_shot(shot: dict, dur: float, out: Path, ff: str, W: int, H: int,
 
     gain = f",volume={ambient_db:.1f}dB" if abs(ambient_db) > 0.05 else ""
     cmd = [ff, "-nostdin", "-y"]
-    if is_vid:
+    if is_vid and _has_audio(str(src)):
         cmd += ["-ss", f"{si:.3f}", "-t", f"{dur:.3f}", "-i", str(src)]
         amap = ["-map", "0:a?", "-af",
                 f"aresample=48000,aformat=cl=stereo,apad,atrim=0:{dur:.3f}{gain}"]
+    elif is_vid:
+        # 影片沒音軌（例如片頭路線動畫）→ 補靜音，才能跟其他片段 concat
+        cmd += ["-ss", f"{si:.3f}", "-t", f"{dur:.3f}", "-i", str(src),
+                "-f", "lavfi", "-t", f"{dur:.3f}", "-i", "anullsrc=cl=stereo:r=48000"]
+        amap = ["-map", "1:a"]
     else:
         cmd += ["-loop", "1", "-t", f"{dur:.3f}", "-r", str(FPS), "-i", str(src),
                 "-f", "lavfi", "-t", f"{dur:.3f}", "-i", "anullsrc=cl=stereo:r=48000"]
@@ -345,7 +356,7 @@ def make_ass(srt: Path, ass: Path, ff: str, W: int, H: int, tmap=None) -> None:
         rc = S.get("reflection_fill", "E8C88C")
         rc_bgr = (rc[4:6] + rc[2:4] + rc[0:2]).lower()          # E8C88C → 8cc8e8
         big = round(S["size_1080"] * S.get("reflection_size_mul", 1.18) * k)
-        py = round(H * S.get("reflection_y_frac", 0.60))        # 螢幕高的 60% ≈ 中間偏下
+        py = round(H * S.get("reflection_y_frac", 0.80))        # 螢幕高的 ~80% = 下方，不擋主體
         out_lines = []
         for ln in txt.splitlines():
             if ln.startswith("Dialogue:") and rc_bgr in ln.lower():
@@ -394,8 +405,9 @@ def _short_place(name: str) -> str:
     return ""                                                # 純里名 / POI → 寧可不顯示
 
 
-def chyron_ass(data: dict, layout: list, ass: Path, W: int, H: int, tmap=None) -> bool:
-    """右下角資訊軌：每個小章節一條 Dialogue，持續整章。Day / 地名 / 里程 / 海拔。"""
+def chyron_ass(data: dict, layout: list, ass: Path, W: int, H: int, tmap=None, xf: float = 0.0) -> bool:
+    """右下角資訊軌：每個小章節一條 Dialogue，持續整章。Day / 地名 / 里程 / 海拔。
+    xf = 章間交叉溶接秒數：每條在章界前提早 xf+0.3s 收，免得溶接時前後兩章的 Day 標同時出現。"""
     from backend.util.subtitle_preset import STYLE as S
     from backend.util.photos_meta import load_photos_meta, meta_for
 
@@ -463,6 +475,7 @@ def chyron_ass(data: dict, layout: list, ass: Path, W: int, H: int, tmap=None) -
         t1 = g[-1]["start"] + g[-1]["dur"] - 0.05
         if tmap is not None:
             t0, t1 = tmap(t0), tmap(t1)
+        t1 = max(t0 + 1.0, t1 - (xf + 0.3))   # 章界前收掉，溶接時不會前後兩章 Day 標疊著
         lines.append((t0, t1, "  ｜  ".join(parts)))
 
     if not lines:
@@ -523,7 +536,7 @@ def main() -> None:
     ap.add_argument("--start", type=float, default=0.0, help="只渲從第 N 秒開始")
     ap.add_argument("--duration", type=float, default=0.0, help="只渲這麼多秒（0=到片尾）")
     ap.add_argument("--keep", action="store_true", help="保留逐鏡片段（除錯用）")
-    ap.add_argument("--xfade", type=float, default=0.5, help="章與章之間交叉溶接秒數（章內硬切）")
+    ap.add_argument("--xfade", type=float, default=0.8, help="章與章之間交叉溶接秒數（章內硬切）")
     ap.add_argument("--no-xfade", action="store_true", help="全片硬切，不做章間溶接")
     args = ap.parse_args()
     if args.for_imovie:
@@ -701,7 +714,7 @@ def main() -> None:
         make_ass(srt, work / "subs.ass", ff, W, H, tmap)   # SRT→ASS + preset 樣式（路徑不含空白）
         vchain += "ass=subs.ass,"
         if not args.start and not args.duration:      # 資訊軌時間碼是全片的，切片模式不燒
-            if chyron_ass(data, full, work / "meta.ass", W, H, tmap):
+            if chyron_ass(data, full, work / "meta.ass", W, H, tmap, xf=XF):
                 vchain += "ass=meta.ass,"
     vchain += "null[v]"
 

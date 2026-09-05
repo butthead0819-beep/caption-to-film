@@ -233,6 +233,8 @@ def main() -> None:
     ap.add_argument("--max-scene-sec", type=float, default=60.0,
                     help="長於此秒數且有內部訊號（換日/換地點）的章對切，預設 60")
     ap.add_argument("--montage", action="store_true", help="整支片子當一個 scene（蒙太奇）")
+    ap.add_argument("--by-theme", action="store_true", help="使用 ChapterPlanner 進行 6~8 個電影感主題篇章規劃")
+    ap.add_argument("--chapters", type=int, default=7, help="--by-theme 模式的目標篇章數（預設 7）")
     ap.add_argument("--write", action="store_true", help="寫檔（否則只預覽）")
     ap.add_argument("--in-place", action="store_true", help="寫回正本 .json（預設寫 <prefix>_scenes.json 副本）")
     ap.add_argument("--rewrite-title", action="store_true", help="把 scene_title 也改成 Day{d}【name】")
@@ -262,9 +264,36 @@ def main() -> None:
             print(f"⚠️  storyboard 非時序（{inv}/{len(seq)-1} 處時間回跳）→ 曆日章節會亂。"
                   f"敘事片建議直接用 Gemini 的 scene_title；或先用 rebuild --chrono 產時序版再切。")
 
-    scenes = segment(storyboard, meta, day_gap_h=args.day_gap, by_gps=args.by_gps,
-                     move_km=args.move_km, by_label=args.by_label, montage=montage,
-                     min_scene_sec=args.min_scene_sec, max_scene_sec=args.max_scene_sec)
+    if args.by_theme:
+        from backend.engines.chapter_planner import ChapterPlanner
+        essay = ""
+        for p in ROOT.rglob("*"):
+            if p.is_file() and p.suffix.lower() in (".md", ".txt") and any(k in p.name.lower() for k in ("心得", "reflection", "journal")):
+                try:
+                    essay = p.read_text("utf-8").strip()
+                    break
+                except Exception:
+                    pass
+        print(f"🎬 調用 ChapterPlanner 規劃 {args.chapters} 個主題篇章 (結合心得長文)...")
+        planner = ChapterPlanner()
+        raw_chaps = planner.plan_chapters(storyboard, story_context=essay, target_chapters=args.chapters)
+        scenes = []
+        for ch in raw_chaps:
+            idxs = ch.get("shot_indices", [])
+            ch_shots = [storyboard[i - 1] for i in idxs if 1 <= i <= len(storyboard)]
+            if not ch_shots:
+                continue
+            name = ch.get("title", f"篇章{len(scenes) + 1}").strip("【】[] ")
+            scenes.append({
+                "scene_id": ch.get("chapter_id", len(scenes) + 1),
+                "name": name,
+                "shots": ch_shots,
+                "day": "",
+            })
+    else:
+        scenes = segment(storyboard, meta, day_gap_h=args.day_gap, by_gps=args.by_gps,
+                         move_km=args.move_km, by_label=args.by_label, montage=montage,
+                         min_scene_sec=args.min_scene_sec, max_scene_sec=args.max_scene_sec)
 
     print(f"\n{src.stem}：{len(storyboard)} 鏡頭 → {len(scenes)} 章")
     for sc in scenes:

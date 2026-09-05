@@ -14,6 +14,20 @@
   （`--per-day` 一天一張約 8~9 張，caption = 章節【】名如「直面壽卡」；不加則依距離分，會很多張）
 - 效果：從高空拉近到地點。**沒有 3D 傾斜**。目前拖進 Resolve 手動用，或之後接 rebuild `--with-maps`
 
+### 燃燒火線片頭（**已實作**：`scripts/route_burn.py` → `map_clips/route_burn.mp4`）
+
+片名卡的動畫版：整條環島 GPS 軌跡逐幀畫成一條燒過去的導火線。
+- **火頭**：白核→黃→橙疊圓 + 高斯發光層 + 每幀重隨機的閃爍火花
+- **尾巴**：燃完的餘燼（暖灰暖橙、離火頭越遠越暗、會淡，但 alpha floor 100 → 整條路仍看得見）
+- **點燃**：火頭經過每個章節起點 → 擴散光環 + 常亮 pin + 「Day N · 地名」標籤淡入保留
+  （Day = 實際曆日序，用 `taken` 日期算；地名優先【】章節名，否則 `_clean_place(scene_name)`）
+- **鏡頭**：先跟拍火頭（zoom 1.9），最後 ~1.8s ease-out 拉遠到全島 → 整圈亮起定住 → `--title` 片名淡入
+- 衛星底圖抓 2x（3840×2160）給跟拍 zoom 用；PIL 逐幀 + ffmpeg libx264。10s/30fps ≈ 70s 算圖。
+- 用法：`.venv/bin/python scripts/route_burn.py --storyboard <prefix>.json --title "片名" --seconds 10`
+- **`build_bookends.py` 會自動偵測**：`map_clips/route_burn.mp4` 存在 → `title` 段用它（video），
+  否則退回 PIL 靜態片名卡 `bookends/title_card.jpg`。
+- 章節結構差的專案（沒 scene_id / 沒【】）標籤會退成行政區名，可能較雜 → 先跑 `segment_scenes.py`。
+
 ### 地名 caption（`backend/util/poi.py`）
 
 **map clip 的 caption 用分鏡章節名最準**（人寫的）：`make_map_clips._scene_caption()`

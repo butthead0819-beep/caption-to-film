@@ -220,6 +220,21 @@ def select_highlights(
                 reason[i] = "剔除：畫面重複 / 晃動過大"
             else:
                 force(i, "保留")
+    elif mode in ("curate", "llm-curate"):
+        from .curator_engine import CuratorEngine
+        tgt = target_count or max(1, round(n / 3))
+        curator = CuratorEngine()
+        curated_res = curator.curate_shots(storyboard, target_count=tgt)
+        curated_idxs = set(curated_res.get("curated_indices", []))
+        roles = curated_res.get("shot_roles", {})
+        for idx in curated_idxs:
+            if 1 <= idx <= n:
+                role_info = roles.get(str(idx), {})
+                r_desc = role_info.get("reason") or role_info.get("role") or "故事主線"
+                force(idx - 1, f"LLM故事精選：{r_desc}")
+        for i in range(n):
+            if not keep[i] and not reason[i]:
+                reason[i] = "剔除：未入選故事主線"
     elif mode == "montage":
         for i, s in enumerate(storyboard):
             if keep[i]:
