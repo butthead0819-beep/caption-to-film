@@ -189,6 +189,49 @@ class MetadataExtractor:
             if caption:
                 meta["caption"] = str(caption).strip()
 
+    def _parse_finder_comment_into_meta(self, raw_comment: str, meta: Dict[str, Any]):
+        """智慧拆解 Finder 註解中的「人工心得」與「AI 摘要/精華標籤」"""
+        if "【AI摘要】" not in raw_comment and "【精華剪輯" not in raw_comment:
+            meta["caption"] = raw_comment
+            meta["user_caption_memory"] = raw_comment
+            return
+
+        user_parts = []
+        ai_summary = ""
+
+        # 情況 A：使用者寫在 【AI摘要】 之前（最推薦的直覺寫法）
+        parts = raw_comment.split("【AI摘要】")
+        prefix_text = parts[0].strip()
+        if prefix_text:
+            clean_prefix = re.sub(r"^【(?:心得|註解|筆記|回憶)】\s*", "", prefix_text).strip()
+            if clean_prefix:
+                user_parts.append(clean_prefix)
+
+        # 提取 AI 摘要
+        rest = parts[1] if len(parts) > 1 else ""
+        summary_match = re.search(r"^(.*?)(?=【精華剪輯|【素材特性|【避坑提示|$)", rest, re.DOTALL)
+        if summary_match:
+            ai_summary = summary_match.group(1).strip()
+
+        # 檢查是否有其他標明 【心得】 的區塊
+        notes_match = re.search(r"【(?:心得|筆記|人工備忘|回憶)】\s*(.*?)(?=【|$)", raw_comment, re.DOTALL)
+        if notes_match:
+            custom_note = notes_match.group(1).strip()
+            if custom_note and custom_note not in user_parts:
+                user_parts.append(custom_note)
+
+        meta["ai_summary"] = ai_summary
+        meta["raw_finder_comment"] = raw_comment
+
+        if user_parts:
+            final_user_caption = "\n".join(user_parts)
+            meta["caption"] = final_user_caption
+            meta["user_caption_memory"] = final_user_caption
+        else:
+            # 尚未寫入人工心得時，留空 caption 避免 AI 第三方描述污染第一人稱口白
+            meta["caption"] = ""
+            meta["user_caption_memory"] = ""
+
     def _extract_video_metadata(self, path: Path, meta: Dict[str, Any]):
         """從影片 (MOV, MP4) 中提取時長、尺寸、說明欄與 GPS"""
         # 1. 優先使用 xattr 讀取 FinderComment (極速)
@@ -198,36 +241,28 @@ class MetadataExtractor:
             if raw_c:
                 parsed = plistlib.loads(raw_c)
                 if isinstance(parsed, str) and parsed.strip() and not meta["caption"]:
-                    meta["caption"] = parsed.strip()
+                    self._parse_finder_comment_into_meta(parsed.strip(), meta)
         except Exception:
             pass
 
-        # 2. 預設時長與尺寸
+        # 2. 透過 media_probe 探測真實尺寸、時長與旋轉後寬高
+        try:
+            from backend.util.media_probe import probe_video
+            pinfo = probe_video(str(path))
+            if pinfo.get("duration_s", 0) > 0:
+                meta["duration"] = pinfo["duration_s"]
+            if pinfo.get("width") and pinfo.get("height"):
+                meta["width"] = pinfo["width"]
+                meta["height"] = pinfo["height"]
+        except Exception:
+            pass
+
+        # 3. 若仍無時長尺寸，退回預設保底
         if not meta.get("duration"):
             meta["duration"] = 3.0
         if not meta.get("width"):
             meta["width"] = 1920
             meta["height"] = 1080
-
-        # 3. 嘗試從 QuickTime atom 讀取時長 (純 Python 解析)
-        try:
-            import struct
-            with open(path, 'rb') as f:
-                data = f.read(1024 * 1024 * 2)
-                idx = data.find(b'mvhd')
-                if idx != -1:
-                    version = data[idx+4]
-                    if version == 0:
-                        timescale, duration = struct.unpack('>II', data[idx+16:idx+24])
-                        if timescale > 0:
-                            meta["duration"] = round(duration / timescale, 2)
-                    elif version == 1:
-                        timescale = struct.unpack('>I', data[idx+24:idx+28])[0]
-                        duration = struct.unpack('>Q', data[idx+28:idx+36])[0]
-                        if timescale > 0:
-                            meta["duration"] = round(duration / timescale, 2)
-        except Exception as e:
-            meta["raw_metadata"]["video_parse_error"] = str(e)
 
     def _extract_macos_metadata(self, path: Path, meta: Dict[str, Any]):
         """從 macOS Spotlight (mdls) 或 xattr 中提取 iOS 說明欄/註解 (kMDItemFinderComment)"""
@@ -242,8 +277,8 @@ class MetadataExtractor:
             if raw_comment:
                 try:
                     parsed = plistlib.loads(raw_comment)
-                    if isinstance(parsed, str) and parsed.strip() and not meta["caption"]:
-                        meta["caption"] = parsed.strip()
+                    if isinstance(parsed, str) and parsed.strip() and not meta.get("caption"):
+                        self._parse_finder_comment_into_meta(parsed.strip(), meta)
                         return
                 except Exception:
                     pass
